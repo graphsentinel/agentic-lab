@@ -1,0 +1,224 @@
+# ============================================================================
+# Edge Agent Workflow — Predictive Maintenance on a Factory Floor
+# ============================================================================
+#
+# Topology:
+#   Cloud Registry (S3/OCI)  ──push artifacts──>  Edge Node (K3s)
+#
+#   On the edge node:
+#     edge_orchestrator (Strategic)
+#       └── floor_manager (Tactical)
+#             ├── vibration_analyst   — Complex Operator (small language model)
+#             └── anomaly_detector    — Predictive / ML inference (ONNX)
+#
+# Cloud-to-edge refresh:
+#   - The orchestrator's workflow graph is pulled from OCI so operations
+#     engineers can update orchestration logic without redeploying containers.
+#   - The anomaly_detector's ONNX model is refreshed hourly from S3 when
+#     a new model version is published by the ML training pipeline.
+#   - The vibration_analyst's GGUF small-language-model is synced from OCI
+#     so the edge can run local inference without cloud connectivity.
+#
+# ============================================================================
+
+apiVersion: agent-lab.io/v1alpha1
+kind: AgenticArchitecture
+metadata:
+  name: edge-predictive-maintenance
+  labels:
+    environment: edge
+    site: factory-floor-01
+    template: centralized
+
+spec:
+  architecture_template: centralized
+  target_deployment: edge
+
+  # ------------------------------------------------------------------
+  # Cloud-to-Edge Sync Policy
+  # ------------------------------------------------------------------
+  edge_sync:
+    enabled: true
+    transport: oci-pull              # Pull artifacts from an OCI-compatible registry
+    interval_seconds: 3600           # Check for updates every hour
+    registry: "oci://factory-models.example.com/edge"
+    verify_signature: true           # Require cosign / notary verification
+    rollback_on_failure: true        # Auto-rollback if health check fails
+
+  # ------------------------------------------------------------------
+  # Protocols — lightweight for edge
+  # ------------------------------------------------------------------
+  protocols:
+    internal_a2a:
+      transport: grpc
+      auth: spiffe-mtls
+    event_bus: cloudevents
+    tooling:
+      standard: mcp
+      sandboxed: true
+
+  # ------------------------------------------------------------------
+  # Security
+  # ------------------------------------------------------------------
+  security:
+    default_clearance: internal-restricted
+    pii_scrubbing: disabled          # No PII on sensor data
+    audit_logging: retain_1_year
+    deterministic_fallback: true
+    io_filtering: true
+
+  # ------------------------------------------------------------------
+  # Agent Layers
+  # ------------------------------------------------------------------
+  layers:
+
+    # === Shared Tool Catalogue ===
+    tools:
+      - name: sensor_timeseries_db
+        type: database
+        framework: mcp
+        description: Read-only access to sensor time-series database (InfluxDB)
+        language: python
+        permissions: [read]
+        sandboxed: true
+        input_schema:
+          - name: query
+            type: string
+            description: InfluxQL or Flux query
+        output_schema:
+          - name: series
+            type: array
+            description: Time-series data points
+
+      - name: maintenance_ticket_api
+        type: api
+        framework: native
+        description: Create and update maintenance work orders in the CMMS
+        language: python
+        permissions: [read, write]
+        input_schema:
+          - name: asset_id
+            type: string
+            description: Equipment asset identifier
+          - name: priority
+            type: string
+            description: Ticket priority (low, medium, high, critical)
+          - name: description
+            type: string
+            description: Issue description
+
+      - name: alert_notifier
+        type: api
+        framework: native
+        description: Push real-time alerts to the ops dashboard and Slack
+        language: python
+        permissions: [execute]
+        input_schema:
+          - name: severity
+            type: string
+            description: Alert severity level
+          - name: message
+            type: string
+            description: Alert message body
+
+    # === Strategic: Edge Orchestrator ===
+    strategic:
+      - name: edge_orchestrator
+        type: llm_reasoner
+        framework: langgraph-python
+        agent_card:
+          clearance: top-secret
+          reasoning: deterministic    # Edge orchestrator uses rule-based routing
+          can_delegate_to:
+            - floor_manager
+        tools:
+          - name: alert_notifier
+        # The orchestrator's workflow graph can be updated from the cloud
+        # without redeploying the container.
+        workflow_artifact:
+          name: edge-orchestrator-workflow
+          registry: "oci://factory-models.example.com/edge/workflows"
+          version: latest
+          format: langgraph-json
+
+    # === Tactical: Floor Manager ===
+    tactical:
+      - name: floor_manager
+        domain: manufacturing
+        reports_to: edge_orchestrator
+        agent_card:
+          clearance: internal-restricted
+          requires_mcp_auth: true
+        tools:
+          - name: maintenance_ticket_api
+          - name: alert_notifier
+
+    # === Execution Workers ===
+    execution:
+
+      # --- Complex Operator: Small Language Model for vibration analysis ---
+      # Runs a quantized SLM (GGUF) locally on the edge node to interpret
+      # vibration frequency spectra and produce human-readable diagnostics.
+      - name: vibration_analyst
+        type: complex_operator
+        language: python
+        framework: langchain-python
+        assigned_to: floor_manager
+        agent_card:
+          clearance: internal-restricted
+          reasoning: llm-based
+          capabilities:
+            - vibration_spectrum_analysis
+            - natural_language_diagnostics
+        tools:
+          - name: sensor_timeseries_db
+            permissions: [read]
+        security_filters:
+          - output_validator
+        model_artifact:
+          name: vibration-slm
+          format: gguf
+          registry: "oci://factory-models.example.com/edge/slm"
+          version: "1.2.0"
+          runtime: llama-cpp
+
+      # --- Predictive Operator: ML-based anomaly detection (ONNX) ---
+      # Runs an ONNX model trained in the cloud on historical sensor data.
+      # The model is refreshed on the edge whenever a new version is pushed
+      # to the S3 model registry by the cloud ML training pipeline.
+      - name: anomaly_detector
+        type: predictive
+        language: python
+        framework: native-python
+        assigned_to: floor_manager
+        agent_card:
+          clearance: internal-restricted
+          reasoning: deterministic    # Inference is deterministic once loaded
+          capabilities:
+            - sensor_anomaly_detection
+            - predictive_maintenance_scoring
+        tools:
+          - name: sensor_timeseries_db
+            permissions: [read]
+          - name: maintenance_ticket_api
+            permissions: [write]
+        mcp_tools:
+          - name: sensor_timeseries_db
+            permissions:
+              - read
+        model_artifact:
+          name: anomaly-detector-v2
+          format: onnx
+          registry: "s3://factory-ml-models/anomaly-detector"
+          version: latest
+          runtime: onnxruntime
+
+  # ------------------------------------------------------------------
+  # Generation
+  # ------------------------------------------------------------------
+  generation:
+    target_language: python
+    target_framework: langchain-python
+    output_dir: ./generated-edge
+    containerize: true
+    k8s_manifests: true              # K3s-compatible manifests

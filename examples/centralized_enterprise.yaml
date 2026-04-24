@@ -1,0 +1,187 @@
+apiVersion: agent-lab.io/v1alpha1
+kind: AgenticArchitecture
+metadata:
+  name: secure-enterprise-mesh
+  labels:
+    environment: production
+    template: centralized
+
+spec:
+  architecture_template: centralized
+  target_deployment: kubernetes
+
+  # Global Communication & Governance Protocols
+  protocols:
+    internal_a2a:
+      transport: grpc
+      auth: spiffe-mtls       # K8s workload identity
+    event_bus: cloudevents
+    tooling:
+      standard: mcp
+      sandboxed: true          # Enforces network isolation for tool containers
+
+  # Global Security Posture
+  security:
+    default_clearance: low
+    pii_scrubbing: enabled     # Auto-injects deterministic masking before LLM calls
+    audit_logging: retain_7_years
+    deterministic_fallback: true
+    io_filtering: true
+
+  # Behavioral Model & Agent Definition
+  layers:
+
+    # === Shared Tool Catalogue ===
+    tools:
+      - name: postgres_hr_db
+        type: database
+        framework: mcp
+        description: Read-only access to the HR PostgreSQL database
+        language: python
+        permissions: [read]
+        sandboxed: true
+        input_schema:
+          - name: query
+            type: string
+            description: SQL SELECT statement
+        output_schema:
+          - name: rows
+            type: array
+            description: Result rows
+
+      - name: financial_data_api
+        type: api
+        framework: mcp
+        description: Read-only REST API for financial reporting data
+        language: python
+        permissions: [read]
+        sandboxed: true
+        input_schema:
+          - name: endpoint
+            type: string
+            description: API endpoint path
+          - name: params
+            type: object
+            description: Query parameters
+        output_schema:
+          - name: data
+            type: object
+            description: JSON response payload
+
+      - name: web_search
+        type: search
+        framework: langchain
+        description: Internet search for public information retrieval
+        language: python
+        permissions: [read]
+        input_schema:
+          - name: query
+            type: string
+            description: Search query
+
+      - name: email_sender
+        type: api
+        framework: native
+        description: Send email notifications via corporate SMTP
+        language: python
+        permissions: [execute]
+        input_schema:
+          - name: to
+            type: string
+            description: Recipient email address
+          - name: subject
+            type: string
+            description: Email subject line
+          - name: body
+            type: string
+            description: Email body (plain text or HTML)
+
+    # === Strategic ===
+    strategic:
+      - name: global_orchestrator
+        type: llm_reasoner
+        framework: langgraph-python
+        agent_card:
+          clearance: top-secret
+          reasoning: llm-based
+          can_delegate_to:
+            - hr_sub_orchestrator
+            - finance_sub_orchestrator
+        tools:
+          - name: web_search
+
+    # === Tactical ===
+    tactical:
+      - name: hr_sub_orchestrator
+        domain: human_resources
+        reports_to: global_orchestrator
+        agent_card:
+          clearance: internal-restricted
+          requires_mcp_auth: true
+        tools:
+          - name: email_sender
+
+      - name: finance_sub_orchestrator
+        domain: finance
+        reports_to: global_orchestrator
+        agent_card:
+          clearance: confidential
+          requires_mcp_auth: true
+
+    # === Execution ===
+    execution:
+      # High-Security Deterministic Agent (No LLM Risk)
+      - name: secure_db_query
+        type: simple_operator
+        language: python
+        framework: native-python
+        assigned_to: hr_sub_orchestrator
+        agent_card:
+          clearance: top-secret
+          reasoning: deterministic
+        tools:
+          - name: postgres_hr_db
+            permissions: [read]
+        mcp_tools:
+          - name: postgres_hr_db
+            permissions:
+              - read
+
+      # Complex LLM Agent (Isolated & Governed)
+      - name: generative_writer
+        type: complex_operator
+        framework: langchain-python
+        assigned_to: hr_sub_orchestrator
+        agent_card:
+          clearance: low-public
+          reasoning: llm-based
+        tools:
+          - name: web_search
+        security_filters:
+          - prompt_injection_shield
+          - pii_masker
+
+      # Finance deterministic worker
+      - name: financial_report_generator
+        type: simple_operator
+        language: python
+        framework: native-python
+        assigned_to: finance_sub_orchestrator
+        agent_card:
+          clearance: confidential
+          reasoning: deterministic
+        tools:
+          - name: financial_data_api
+            permissions: [read]
+        mcp_tools:
+          - name: financial_data_api
+            permissions:
+              - read
+
+  # Code Generation Configuration
+  generation:
+    target_language: python
+    target_framework: langchain-python
+    output_dir: ./generated
+    containerize: true
+    k8s_manifests: true

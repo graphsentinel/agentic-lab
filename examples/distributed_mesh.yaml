@@ -1,0 +1,138 @@
+apiVersion: agent-lab.io/v1alpha1
+kind: AgenticArchitecture
+metadata:
+  name: supply-chain-mesh
+  labels:
+    environment: production
+    template: distributed
+
+spec:
+  architecture_template: distributed
+  target_deployment: edge
+
+  # Distributed Communication Protocols
+  protocols:
+    internal_a2a:
+      transport: grpc
+      auth: did              # Decentralized Identifiers for distributed trust
+    event_bus: cloudevents
+    tooling:
+      standard: mcp
+      sandboxed: true
+
+  # Security with Sovereign Privacy
+  security:
+    default_clearance: low
+    pii_scrubbing: enabled
+    audit_logging: retain_7_years
+    deterministic_fallback: true
+    io_filtering: true
+
+  layers:
+
+    # === Shared Tool Catalogue ===
+    tools:
+      - name: warehouse_db
+        type: database
+        framework: mcp
+        description: Warehouse inventory database (read/write)
+        language: python
+        permissions: [read, write]
+        sandboxed: true
+        input_schema:
+          - name: query
+            type: string
+            description: SQL statement
+
+      - name: route_planning_api
+        type: api
+        framework: native
+        description: External route planning and ETA service
+        language: python
+        permissions: [read]
+        input_schema:
+          - name: origin
+            type: string
+            description: Origin location code
+          - name: destination
+            type: string
+            description: Destination location code
+        output_schema:
+          - name: route
+            type: object
+            description: Planned route with ETA
+
+      - name: geospatial_search
+        type: search
+        framework: langchain
+        description: Geospatial search for logistics waypoints
+        language: python
+        permissions: [read]
+
+    # === Strategic ===
+    strategic:
+      - name: logistics_orchestrator
+        type: llm_reasoner
+        framework: langgraph-python
+        agent_card:
+          clearance: top-secret
+          reasoning: llm-based
+          can_delegate_to:
+            - warehouse_manager
+            - transport_manager
+
+    # === Tactical ===
+    tactical:
+      - name: warehouse_manager
+        domain: warehousing
+        reports_to: logistics_orchestrator
+        agent_card:
+          clearance: internal-restricted
+
+      - name: transport_manager
+        domain: transport
+        reports_to: logistics_orchestrator
+        agent_card:
+          clearance: internal-restricted
+        tools:
+          - name: route_planning_api
+          - name: geospatial_search
+
+    # === Execution ===
+    execution:
+      - name: inventory_tracker
+        type: simple_operator
+        language: python
+        framework: native-python
+        assigned_to: warehouse_manager
+        agent_card:
+          clearance: internal-restricted
+          reasoning: deterministic
+        tools:
+          - name: warehouse_db
+            permissions: [read, write]
+        mcp_tools:
+          - name: warehouse_db
+            permissions:
+              - read
+              - write
+
+      - name: route_optimizer
+        type: predictive
+        framework: langchain-python
+        assigned_to: transport_manager
+        agent_card:
+          clearance: internal-restricted
+          reasoning: llm-based
+        tools:
+          - name: route_planning_api
+          - name: geospatial_search
+        security_filters:
+          - output_validator
+
+  generation:
+    target_language: python
+    target_framework: langchain-python
+    output_dir: ./generated
+    containerize: true
+    k8s_manifests: true

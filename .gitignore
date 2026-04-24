@@ -36,3 +36,6 @@ Thumbs.db
 # Generated output
 output/
 generated/
+
+# Local environment files
+.local/

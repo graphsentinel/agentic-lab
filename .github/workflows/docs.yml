@@ -9,23 +9,47 @@ on:
       - "mkdocs.yml"
   workflow_dispatch:
 
+# Required for the "GitHub Actions" Pages source (Settings → Pages → Source)
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment; cancel in-flight runs
+concurrency:
+  group: pages
+  cancel-in-progress: true
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # required for mike versioning
+          fetch-depth: 0   # full history for accurate git-dates
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
       - name: Install docs dependencies
-        run: pip install mkdocs-material mkdocs-material[imaging]
+        run: pip install mkdocs-material
 
-      - name: Deploy docs to GitHub Pages
-        run: mkdocs gh-deploy --force
+      - name: Build docs
+        run: mkdocs build --strict
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

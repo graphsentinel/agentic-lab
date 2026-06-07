@@ -5,7 +5,6 @@ hide:
 
 # agentic-lab
 
-[![CI](https://github.com/graphsentinel/agentic-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/graphsentinel/agentic-lab/actions)
 [![PyPI](https://img.shields.io/pypi/v/agentic-lab)](https://pypi.org/project/agentic-lab/)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/graphsentinel/agentic-lab/blob/main/LICENSE-2.0.txt)
 [![Python](https://img.shields.io/pypi/pyversions/agentic-lab)](https://pypi.org/project/agentic-lab/)

@@ -1,0 +1,145 @@
+site_name: agentic-lab
+site_description: Declarative agentic workflow architecture and automated code/container generation
+site_url: https://graphsentinel.github.io/agentic-lab
+repo_url: https://github.com/graphsentinel/agentic-lab
+repo_name: graphsentinel/agentic-lab
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Roboto
+    code: Roboto Mono
+  icon:
+    repo: fontawesome/brands/github
+    logo: material/graph-outline
+  features:
+    - announce.dismiss
+    - content.action.edit
+    - content.code.annotate
+    - content.code.copy
+    - content.tooltips
+    - navigation.footer
+    - navigation.indexes
+    - navigation.sections
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.top
+    - search.highlight
+    - search.share
+    - search.suggest
+    - toc.follow
+
+plugins:
+  - search:
+      separator: '[\s\u200b\-_,:!=\[\]()"`/]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - toc:
+      permalink: true
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.magiclink:
+      normalize_issue_symbols: true
+      repo_url_shorthand: true
+      user: graphsentinel
+      repo: agentic-lab
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+      combine_header_slug: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/graphsentinel/agentic-lab
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/agentic-lab/
+  version:
+    provider: mike
+  status:
+    new: Recently added
+    deprecated: Deprecated
+
+extra_css:
+  - stylesheets/extra.css
+
+nav:
+  - Home: index.md
+  - Architecture: architecture.md
+  - Concepts:
+      - concepts/index.md
+      - ASL: concepts/asl.md
+      - MABaC: concepts/mabac.md
+      - Governance Contract: concepts/governance-contract.md
+      - Agent Card: concepts/agent-card.md
+      - Behavioral Envelope: concepts/behavioral-envelope.md
+      - Authorization: concepts/authorization.md
+  - Taxonomy:
+      - taxonomy/index.md
+      - Roles: taxonomy/roles.md
+      - Interaction Patterns: taxonomy/interaction-patterns.md
+      - Governance Levels: taxonomy/governance-levels.md
+      - Communication Protocols: taxonomy/communication-protocols.md
+  - Topologies:
+      - topologies/index.md
+      - Pyramid (Centralized): topologies/pyramid.md
+      - Mesh (Distributed): topologies/mesh.md
+      - Deployment Targets: topologies/deployment-targets.md
+  - Patterns:
+      - patterns/index.md
+      - Collaborative: patterns/collaborative.md
+      - Adversarial: patterns/adversarial.md
+      - Governance Implications: patterns/governance-implications.md
+  - Vision:
+      - vision/index.md
+      - Gossip, DHT & Consensus: vision/gossip-dht-consensus.md
+      - Federation: vision/federation.md
+      - Framework-Agnostic Core: vision/framework-agnostic.md
+  - Reference:
+      - CLI: reference/cli.md
+      - ASL Schema: reference/asl-schema.md
+      - Examples: reference/examples.md
+  - Contributing: contributing.md
+  - Changelog: changelog.md

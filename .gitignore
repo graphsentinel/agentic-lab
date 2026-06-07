@@ -29,6 +29,9 @@ htmlcov/
 .env
 .env.*
 
+# MkDocs build output
+site/
+
 # OS
 .DS_Store
 Thumbs.db

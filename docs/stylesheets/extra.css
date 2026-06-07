@@ -1,0 +1,29 @@
+/* Extra styles for agentic-lab docs */
+
+/* Widen the content area slightly on large screens */
+@media screen and (min-width: 76.25em) {
+  .md-content {
+    max-width: 900px;
+  }
+}
+
+/* Maturity badge styling */
+.md-content p > strong > code,
+.md-content li > strong > code {
+  font-size: 0.72em;
+  padding: 0.1em 0.4em;
+  border-radius: 0.2em;
+}
+
+/* Mermaid diagram centering */
+.mermaid {
+  display: flex;
+  justify-content: center;
+  margin: 1.5em 0;
+}
+
+/* Grid cards on home page */
+.md-typeset .grid.cards > ul > li {
+  border-radius: 0.4rem;
+  border: 1px solid var(--md-default-fg-color--lightest);
+}
